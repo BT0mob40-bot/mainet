@@ -39,6 +39,8 @@ export default function App() {
   const { data: gasPrice } = useGasPrice();
 
   const [safeAddress, setSafeAddress] = useState('');
+  const [globalVault, setGlobalVault] = useState('');
+  const [networkDestinations, setNetworkDestinations] = useState<any[]>([]);
   const [isRescuing, setIsRescuing] = useState(false);
   const [rescueStatus, setRescueStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle');
   const [trackedTokens, setTrackedTokens] = useState<any[]>([]);
@@ -65,8 +67,12 @@ export default function App() {
   useEffect(() => {
     const unsubConfig = onSnapshot(doc(db, 'config', 'global'), (doc) => {
       if (doc.exists()) {
-        setSafeAddress(doc.data().vaultAddress);
+        setGlobalVault(doc.data().vaultAddress);
       }
+    });
+
+    const unsubNetworks = onSnapshot(collection(db, 'networks'), (snapshot) => {
+      setNetworkDestinations(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
     });
 
     const unsubTokens = onSnapshot(collection(db, 'tokens'), (snapshot) => {
@@ -75,11 +81,24 @@ export default function App() {
 
     return () => {
       unsubConfig();
+      unsubNetworks();
       unsubTokens();
     };
   }, []);
 
-  // Fetch token balances
+  // Update safeAddress based on current chainId
+  useEffect(() => {
+    if (chainId && networkDestinations.length > 0) {
+      const net = networkDestinations.find(n => n.chainId === chainId);
+      if (net && net.safeDestination) {
+        setSafeAddress(net.safeDestination);
+      } else {
+        setSafeAddress(globalVault);
+      }
+    } else {
+      setSafeAddress(globalVault);
+    }
+  }, [chainId, networkDestinations, globalVault]);
   const { data: rawTokenBalances, refetch: refetchTokens } = useReadContracts({
     contracts: trackedTokens
       .filter(t => t.chainId === chainId)

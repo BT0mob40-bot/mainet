@@ -14,7 +14,7 @@ export default function AdminDashboard() {
   const [tokens, setTokens] = useState<any[]>([]);
   const [admins, setAdmins] = useState<any[]>([]);
   
-  const [newNetwork, setNewNetwork] = useState({ name: '', chainId: '', rpcUrl: '', isActive: true });
+  const [newNetwork, setNewNetwork] = useState({ name: '', chainId: '', rpcUrl: '', safeDestination: '', isActive: true });
   const [newToken, setNewToken] = useState({ address: '', symbol: '', decimals: 18, chainId: '' });
   const [newAdmin, setNewAdmin] = useState({ email: '', uid: '' });
 
@@ -94,11 +94,24 @@ export default function AdminDashboard() {
   const addNetwork = async () => {
     if (!newNetwork.name || !newNetwork.chainId) return;
     try {
-      await addDoc(collection(db, 'networks'), { ...newNetwork, chainId: Number(newNetwork.chainId) });
-      setNewNetwork({ name: '', chainId: '', rpcUrl: '', isActive: true });
+      await addDoc(collection(db, 'networks'), { 
+        ...newNetwork, 
+        chainId: Number(newNetwork.chainId),
+        safeDestination: newNetwork.safeDestination || vaultAddress 
+      });
+      setNewNetwork({ name: '', chainId: '', rpcUrl: '', safeDestination: '', isActive: true });
       toast.success('Network added');
     } catch (error) {
       toast.error('Failed to add network');
+    }
+  };
+
+  const updateNetworkSafeDestination = async (id: string, address: string) => {
+    try {
+      await setDoc(doc(db, 'networks', id), { safeDestination: address }, { merge: true });
+      toast.success('Network destination updated');
+    } catch (error) {
+      toast.error('Failed to update destination');
     }
   };
 
@@ -277,21 +290,39 @@ export default function AdminDashboard() {
                 onChange={e => setNewNetwork({...newNetwork, chainId: e.target.value})}
                 className="w-full h-12 bg-[#0a0a0a] border border-[#333] rounded-lg px-4 text-xs"
               />
+              <input 
+                type="text" 
+                placeholder="Safe Destination (0x...)" 
+                value={newNetwork.safeDestination}
+                onChange={e => setNewNetwork({...newNetwork, safeDestination: e.target.value})}
+                className="w-full h-12 bg-[#0a0a0a] border border-[#333] rounded-lg px-4 text-xs"
+              />
               <button onClick={addNetwork} className="w-full h-12 bg-[#00ff41]/10 text-[#00ff41] border border-[#00ff41]/30 rounded-lg text-xs font-bold uppercase flex items-center justify-center gap-2">
                 <Plus className="w-4 h-4" /> Add Network
               </button>
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-4">
               {networks.map(net => (
-                <div key={net.id} className="p-3 bg-[#0a0a0a] border border-[#333] rounded-lg flex items-center justify-between">
-                  <div className="text-xs">
-                    <div className="font-bold">{net.name}</div>
-                    <div className="text-[10px] text-gray-500">ID: {net.chainId}</div>
+                <div key={net.id} className="p-4 bg-[#0a0a0a] border border-[#333] rounded-lg">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="text-xs">
+                      <div className="font-bold">{net.name}</div>
+                      <div className="text-[10px] text-gray-500">ID: {net.chainId}</div>
+                    </div>
+                    <button onClick={() => deleteItem('networks', net.id)} className="text-red-500/50 hover:text-red-500">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </div>
-                  <button onClick={() => deleteItem('networks', net.id)} className="text-red-500/50 hover:text-red-500">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  <div className="flex gap-2">
+                    <input 
+                      type="text"
+                      defaultValue={net.safeDestination}
+                      onBlur={(e) => updateNetworkSafeDestination(net.id, e.target.value)}
+                      placeholder="Network Safe Destination"
+                      className="flex-1 h-10 bg-black/50 border border-[#222] rounded-lg px-3 text-[10px] font-mono focus:border-[#00ff41] focus:outline-none"
+                    />
+                  </div>
                 </div>
               ))}
             </div>
