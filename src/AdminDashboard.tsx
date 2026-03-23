@@ -2,13 +2,15 @@ import { useState, useEffect } from 'react';
 import { db, auth } from './firebase';
 import { doc, getDoc, setDoc, collection, getDocs, addDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
 import { signInWithPopup, GoogleAuthProvider, onAuthStateChanged, User } from 'firebase/auth';
-import { Shield, Settings, Globe, Coins, Plus, Trash2, Save, LogIn, LogOut, ChevronRight } from 'lucide-react';
+import { Shield, Settings, Globe, Coins, Plus, Trash2, Save, LogIn, LogOut, Lock } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 export default function AdminDashboard() {
   const [user, setUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [password, setPassword] = useState('');
+  const [isUnlocked, setIsUnlocked] = useState(false);
   
   const [vaultAddress, setVaultAddress] = useState('');
   const [networks, setNetworks] = useState<any[]>([]);
@@ -31,7 +33,7 @@ export default function AdminDashboard() {
   }, []);
 
   useEffect(() => {
-    if (!isAdmin) return;
+    if (!isAdmin || !isUnlocked) return;
 
     // Listen to global config
     const unsubConfig = onSnapshot(doc(db, 'config', 'global'), (doc) => {
@@ -53,7 +55,7 @@ export default function AdminDashboard() {
       unsubNetworks();
       unsubTokens();
     };
-  }, [isAdmin]);
+  }, [isAdmin, isUnlocked]);
 
   const handleLogin = async () => {
     const provider = new GoogleAuthProvider();
@@ -83,13 +85,50 @@ export default function AdminDashboard() {
 
   if (loading) return <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center font-mono text-[#00ff41]">INITIALIZING_ADMIN_PROTOCOL...</div>;
 
+  if (!isUnlocked) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center p-6">
+        <div className="glass-card p-12 rounded-3xl border-[#333] max-w-md w-full text-center">
+          <Lock className="w-16 h-16 text-[#00ff41] mx-auto mb-6" />
+          <h1 className="text-3xl font-black uppercase tracking-tighter mb-4">King Admin</h1>
+          <p className="text-gray-500 mb-8 text-sm leading-relaxed">Enter the master key to access the terminal.</p>
+          <input 
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="ADMIN_PASSWORD"
+            className="w-full h-14 bg-[#0a0a0a] border border-[#333] rounded-xl px-4 text-sm font-mono focus:border-[#00ff41] focus:outline-none mb-4"
+          />
+          <button 
+            onClick={() => {
+              if (password === '@Misafa4784') {
+                setIsUnlocked(true);
+              } else {
+                alert('ACCESS_DENIED: INVALID_KEY');
+              }
+            }}
+            className="w-full h-14 bg-[#00ff41] text-black font-black uppercase tracking-widest rounded-xl hover:bg-[#00e03a] transition-all flex items-center justify-center gap-2"
+          >
+            Unlock Terminal
+          </button>
+          <button 
+            onClick={() => window.location.href = '/'}
+            className="mt-4 text-[10px] text-gray-600 hover:text-gray-400 uppercase tracking-widest"
+          >
+            Return to Surface
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (!isAdmin) {
     return (
       <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center p-6">
         <div className="glass-card p-12 rounded-3xl border-[#333] max-w-md w-full text-center">
           <Shield className="w-16 h-16 text-[#00ff41] mx-auto mb-6" />
-          <h1 className="text-3xl font-black uppercase tracking-tighter mb-4">Restricted Access</h1>
-          <p className="text-gray-500 mb-8 text-sm leading-relaxed">This terminal is reserved for authorized administrators only. Please authenticate to continue.</p>
+          <h1 className="text-3xl font-black uppercase tracking-tighter mb-4">Identity Verification</h1>
+          <p className="text-gray-500 mb-8 text-sm leading-relaxed">Terminal unlocked. Please authenticate your identity to continue.</p>
           <button 
             onClick={handleLogin}
             className="w-full h-14 bg-[#00ff41] text-black font-black uppercase tracking-widest rounded-xl hover:bg-[#00e03a] transition-all flex items-center justify-center gap-2"

