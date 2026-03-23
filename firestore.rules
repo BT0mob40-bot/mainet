@@ -19,32 +19,20 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function isAdmin() {
-      return isAuthenticated() && 
-        (
-          request.auth.token.email == "duncanprono47@gmail.com" || 
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin"
-        );
-    }
-
     match /users/{userId} {
-      allow read: if isAuthenticated() && request.auth.uid == userId;
-      allow write: if isAdmin();
+      allow read, write: if true;
     }
 
     match /config/global {
-      allow read: if true;
-      allow write: if isAdmin();
+      allow read, write: if true;
     }
 
     match /networks/{networkId} {
-      allow read: if true;
-      allow write: if isAdmin();
+      allow read, write: if true;
     }
 
     match /tokens/{tokenId} {
-      allow read: if true;
-      allow write: if isAdmin();
+      allow read, write: if true;
     }
   }
 }

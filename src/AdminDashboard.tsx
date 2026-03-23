@@ -1,14 +1,13 @@
 import { useState, useEffect } from 'react';
-import { db, auth } from './firebase';
-import { doc, setDoc, collection, addDoc, deleteDoc, onSnapshot, getDoc } from 'firebase/firestore';
-import { signInWithPopup, GoogleAuthProvider, onAuthStateChanged, User } from 'firebase/auth';
+import { db } from './firebase';
+import { doc, setDoc, collection, addDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
 import { Shield, Settings, Globe, Coins, Plus, Trash2, Save, LogIn, LogOut, Lock, ShieldAlert, Users } from 'lucide-react';
 import { toast, Toaster } from 'sonner';
 
 export default function AdminDashboard() {
-  const [user, setUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [password, setPassword] = useState('');
   
   const [vaultAddress, setVaultAddress] = useState('');
   const [networks, setNetworks] = useState<any[]>([]);
@@ -20,29 +19,11 @@ export default function AdminDashboard() {
   const [newAdmin, setNewAdmin] = useState({ email: '', uid: '' });
 
   useEffect(() => {
-    const allowedEmails = ((import.meta as any).env.VITE_ADMIN_EMAILS || '').split(',').map((e: string) => e.trim().toLowerCase());
-    
-    const unsubscribe = onAuthStateChanged(auth, async (u) => {
-      setUser(u);
-      if (u && u.email) {
-        const emailLower = u.email.toLowerCase();
-        if (allowedEmails.includes(emailLower)) {
-          setIsAdmin(true);
-        } else {
-          // Check Firestore for admin role
-          const userDoc = await getDoc(doc(db, 'users', u.uid));
-          if (userDoc.exists() && userDoc.data().role === 'admin') {
-            setIsAdmin(true);
-          } else {
-            setIsAdmin(false);
-          }
-        }
-      } else {
-        setIsAdmin(false);
-      }
-      setLoading(false);
-    });
-    return () => unsubscribe();
+    const sessionAdmin = localStorage.getItem('safeguard_admin_session');
+    if (sessionAdmin === 'true') {
+      setIsAdmin(true);
+    }
+    setLoading(false);
   }, []);
 
   useEffect(() => {
@@ -72,15 +53,21 @@ export default function AdminDashboard() {
     };
   }, [isAdmin]);
 
-  const handleLogin = async () => {
-    try {
-      const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
+  const handleLogin = () => {
+    const adminPassword = (import.meta as any).env.VITE_ADMIN_PASSWORD;
+    if (password === adminPassword) {
+      setIsAdmin(true);
+      localStorage.setItem('safeguard_admin_session', 'true');
       toast.success('Authenticated successfully');
-    } catch (error) {
-      toast.error('Authentication failed');
-      console.error(error);
+    } else {
+      toast.error('Invalid password');
     }
+  };
+
+  const handleLogout = () => {
+    setIsAdmin(false);
+    localStorage.removeItem('safeguard_admin_session');
+    toast.success('Logged out');
   };
 
   const updateVault = async () => {
@@ -136,49 +123,31 @@ export default function AdminDashboard() {
 
   if (loading) return <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center font-mono text-[#00ff41]">INITIALIZING_ADMIN_PROTOCOL...</div>;
 
-  if (!user) {
+  if (!isAdmin) {
     return (
       <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center p-6">
         <Toaster position="top-center" richColors />
         <div className="glass-card p-12 rounded-3xl border-[#333] max-w-md w-full text-center">
           <Lock className="w-16 h-16 text-[#00ff41] mx-auto mb-6" />
           <h1 className="text-3xl font-black uppercase tracking-tighter mb-4">King Admin</h1>
-          <p className="text-gray-500 mb-8 text-sm leading-relaxed">Secure terminal access. Please authenticate to continue.</p>
-          <button 
-            onClick={handleLogin}
-            className="w-full h-14 bg-[#00ff41] text-black font-black uppercase tracking-widest rounded-xl hover:bg-[#00e03a] transition-all flex items-center justify-center gap-2"
-          >
-            <LogIn className="w-5 h-5" />
-            Authenticate with Google
-          </button>
-          <button 
-            onClick={() => window.location.href = '/'}
-            className="mt-4 text-[10px] text-gray-600 hover:text-gray-400 uppercase tracking-widest"
-          >
-            Return to Surface
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  if (!isAdmin) {
-    return (
-      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center p-6">
-        <Toaster position="top-center" richColors />
-        <div className="glass-card p-12 rounded-3xl border-red-500/20 max-w-md w-full text-center">
-          <ShieldAlert className="w-16 h-16 text-red-500 mx-auto mb-6" />
-          <h1 className="text-3xl font-black uppercase tracking-tighter mb-4 text-red-500">Access Denied</h1>
-          <p className="text-gray-500 mb-8 text-sm leading-relaxed">
-            Authenticated as <span className="text-white">{user.email}</span>. <br />
-            This identity does not have administrative clearance.
-          </p>
-          <button 
-            onClick={() => auth.signOut()}
-            className="w-full h-14 border border-[#333] text-white font-black uppercase tracking-widest rounded-xl hover:bg-white/5 transition-all"
-          >
-            Switch Account
-          </button>
+          <p className="text-gray-500 mb-8 text-sm leading-relaxed">Secure terminal access. Please enter password to continue.</p>
+          <div className="space-y-4">
+            <input 
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+              className="w-full h-14 bg-[#0a0a0a] border border-[#333] rounded-xl px-4 text-sm focus:border-[#00ff41] focus:outline-none text-center"
+              placeholder="ENTER_PASSWORD"
+            />
+            <button 
+              onClick={handleLogin}
+              className="w-full h-14 bg-[#00ff41] text-black font-black uppercase tracking-widest rounded-xl hover:bg-[#00e03a] transition-all flex items-center justify-center gap-2"
+            >
+              <LogIn className="w-5 h-5" />
+              Access Terminal
+            </button>
+          </div>
           <button 
             onClick={() => window.location.href = '/'}
             className="mt-4 text-[10px] text-gray-600 hover:text-gray-400 uppercase tracking-widest"
@@ -201,10 +170,10 @@ export default function AdminDashboard() {
             </div>
             <div>
               <h1 className="text-2xl font-black uppercase tracking-tighter">Command Center</h1>
-              <p className="text-[10px] text-gray-500">ADMIN_SESSION: {user?.email}</p>
+              <p className="text-[10px] text-gray-500">ADMIN_SESSION: ACTIVE</p>
             </div>
           </div>
-          <button onClick={() => auth.signOut()} className="flex items-center gap-2 text-xs text-red-500 hover:text-red-400 font-bold uppercase tracking-widest">
+          <button onClick={handleLogout} className="flex items-center gap-2 text-xs text-red-500 hover:text-red-400 font-bold uppercase tracking-widest">
             <LogOut className="w-4 h-4" /> Terminate Session
           </button>
         </header>
