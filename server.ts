@@ -15,9 +15,34 @@ async function startServer() {
 
   app.use(express.json());
 
+  // Logging middleware
+  app.use((req, res, next) => {
+    console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+    next();
+  });
+
+  // Test route
+  app.get("/api/test", (req, res) => {
+    res.json({ message: "API is working" });
+  });
+
   // API Route for Admin Login
-  app.post("/api/admin/login", (req, res) => {
+  app.use("/api/admin/login", (req, res, next) => {
+    console.log(`Login route hit with method: ${req.method}`);
+    
+    // Debug: Log available env keys (not values)
+    console.log("Available env keys:", Object.keys(process.env).filter(k => k.includes("ADMIN")));
+
+    if (req.method === "OPTIONS") {
+      return res.status(200).end();
+    }
+
+    if (req.method !== "POST") {
+      return res.status(405).json({ success: false, message: "Method not allowed. Use POST." });
+    }
+
     const { password } = req.body;
+    console.log("Password received:", password ? "Yes" : "No");
     
     // Check both VITE_ and non-VITE_ versions for maximum flexibility
     const passwordsStr = process.env.VITE_ADMIN_PASSWORDS || 
@@ -33,9 +58,11 @@ async function startServer() {
 
     const adminPasswords = passwordsStr.split(",").map((p: string) => p.trim());
     
-    if (adminPasswords.includes(password.trim())) {
+    if (password && adminPasswords.includes(password.trim())) {
+      console.log("Login successful");
       return res.json({ success: true });
     } else {
+      console.log("Login failed: Invalid password");
       return res.status(401).json({ success: false, message: "Invalid password" });
     }
   });
