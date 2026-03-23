@@ -1,0 +1,5 @@
+{
+  "name": "SafeGuard Web3 Rescue",
+  "description": "An emergency utility for compromised wallets to quickly sweep assets to a secure destination.",
+  "requestFramePermissions": []
+}

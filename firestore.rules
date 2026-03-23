@@ -1,0 +1,42 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    // Collection: config
+    // Document: global
+    // Fields: vaultAddress (string), updatedAt (timestamp)
+    //
+    // Collection: networks
+    // Fields: chainId (number), name (string), rpcUrl (string), isActive (bool)
+    //
+    // Collection: tokens
+    // Fields: address (string), symbol (string), decimals (number), chainId (number)
+    // ===============================================================
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && 
+        (request.auth.token.email == "duncanprono47@gmail.com" && request.auth.token.email_verified == true);
+    }
+
+    match /config/global {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /networks/{networkId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /tokens/{tokenId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+  }
+}

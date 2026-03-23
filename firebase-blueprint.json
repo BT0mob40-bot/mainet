@@ -1,0 +1,59 @@
+{
+  "entities": {
+    "Config": {
+      "title": "Global Configuration",
+      "description": "Global settings for the rescue app",
+      "type": "object",
+      "properties": {
+        "vaultAddress": {
+          "type": "string",
+          "description": "The default address where all rescued funds are sent"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["vaultAddress"]
+    },
+    "Network": {
+      "title": "Supported Network",
+      "description": "Blockchain networks supported by the app",
+      "type": "object",
+      "properties": {
+        "chainId": { "type": "number" },
+        "name": { "type": "string" },
+        "rpcUrl": { "type": "string" },
+        "explorerUrl": { "type": "string" },
+        "isActive": { "type": "boolean" }
+      },
+      "required": ["chainId", "name", "isActive"]
+    },
+    "Token": {
+      "title": "Tracked Token",
+      "description": "ERC20 tokens to scan for during rescue",
+      "type": "object",
+      "properties": {
+        "address": { "type": "string" },
+        "symbol": { "type": "string" },
+        "decimals": { "type": "number" },
+        "chainId": { "type": "number" }
+      },
+      "required": ["address", "symbol", "decimals", "chainId"]
+    }
+  },
+  "firestore": {
+    "/config/global": {
+      "schema": "Config",
+      "description": "Global app settings"
+    },
+    "/networks": {
+      "schema": "Network",
+      "description": "List of supported networks"
+    },
+    "/tokens": {
+      "schema": "Token",
+      "description": "List of tokens to scan"
+    }
+  }
+}
