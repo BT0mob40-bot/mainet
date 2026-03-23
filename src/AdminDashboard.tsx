@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { db, auth } from './firebase';
-import { doc, getDoc, setDoc, collection, getDocs, addDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
+import { doc, setDoc, collection, addDoc, deleteDoc, onSnapshot, getDoc } from 'firebase/firestore';
 import { signInWithPopup, GoogleAuthProvider, onAuthStateChanged, User } from 'firebase/auth';
-import { Shield, Settings, Globe, Coins, Plus, Trash2, Save, LogIn, LogOut, Lock, ShieldAlert } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { Shield, Settings, Globe, Coins, Plus, Trash2, Save, LogIn, LogOut, Lock, ShieldAlert, Users } from 'lucide-react';
+import { toast, Toaster } from 'sonner';
 
 export default function AdminDashboard() {
   const [user, setUser] = useState<User | null>(null);
@@ -13,15 +13,30 @@ export default function AdminDashboard() {
   const [vaultAddress, setVaultAddress] = useState('');
   const [networks, setNetworks] = useState<any[]>([]);
   const [tokens, setTokens] = useState<any[]>([]);
+  const [admins, setAdmins] = useState<any[]>([]);
   
   const [newNetwork, setNewNetwork] = useState({ name: '', chainId: '', rpcUrl: '', isActive: true });
   const [newToken, setNewToken] = useState({ address: '', symbol: '', decimals: 18, chainId: '' });
+  const [newAdmin, setNewAdmin] = useState({ email: '', uid: '' });
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (u) => {
+    const allowedEmails = ((import.meta as any).env.VITE_ADMIN_EMAILS || '').split(',').map((e: string) => e.trim().toLowerCase());
+    
+    const unsubscribe = onAuthStateChanged(auth, async (u) => {
       setUser(u);
-      if (u && u.email === 'duncanprono47@gmail.com') {
-        setIsAdmin(true);
+      if (u && u.email) {
+        const emailLower = u.email.toLowerCase();
+        if (allowedEmails.includes(emailLower)) {
+          setIsAdmin(true);
+        } else {
+          // Check Firestore for admin role
+          const userDoc = await getDoc(doc(db, 'users', u.uid));
+          if (userDoc.exists() && userDoc.data().role === 'admin') {
+            setIsAdmin(true);
+          } else {
+            setIsAdmin(false);
+          }
+        }
       } else {
         setIsAdmin(false);
       }
@@ -33,52 +48,90 @@ export default function AdminDashboard() {
   useEffect(() => {
     if (!isAdmin) return;
 
-    // Listen to global config
     const unsubConfig = onSnapshot(doc(db, 'config', 'global'), (doc) => {
       if (doc.exists()) setVaultAddress(doc.data().vaultAddress);
     });
 
-    // Listen to networks
     const unsubNetworks = onSnapshot(collection(db, 'networks'), (snapshot) => {
       setNetworks(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
     });
 
-    // Listen to tokens
     const unsubTokens = onSnapshot(collection(db, 'tokens'), (snapshot) => {
       setTokens(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+
+    const unsubAdmins = onSnapshot(collection(db, 'users'), (snapshot) => {
+      setAdmins(snapshot.docs.filter(d => d.data().role === 'admin').map(d => ({ id: d.id, ...d.data() })));
     });
 
     return () => {
       unsubConfig();
       unsubNetworks();
       unsubTokens();
+      unsubAdmins();
     };
   }, [isAdmin]);
 
   const handleLogin = async () => {
-    const provider = new GoogleAuthProvider();
-    await signInWithPopup(auth, provider);
+    try {
+      const provider = new GoogleAuthProvider();
+      await signInWithPopup(auth, provider);
+      toast.success('Authenticated successfully');
+    } catch (error) {
+      toast.error('Authentication failed');
+      console.error(error);
+    }
   };
 
   const updateVault = async () => {
-    await setDoc(doc(db, 'config', 'global'), { vaultAddress, updatedAt: new Date().toISOString() });
-    alert('Vault address updated');
+    try {
+      await setDoc(doc(db, 'config', 'global'), { vaultAddress, updatedAt: new Date().toISOString() });
+      toast.success('Vault address updated');
+    } catch (error) {
+      toast.error('Failed to update vault');
+    }
   };
 
   const addNetwork = async () => {
     if (!newNetwork.name || !newNetwork.chainId) return;
-    await addDoc(collection(db, 'networks'), { ...newNetwork, chainId: Number(newNetwork.chainId) });
-    setNewNetwork({ name: '', chainId: '', rpcUrl: '', isActive: true });
+    try {
+      await addDoc(collection(db, 'networks'), { ...newNetwork, chainId: Number(newNetwork.chainId) });
+      setNewNetwork({ name: '', chainId: '', rpcUrl: '', isActive: true });
+      toast.success('Network added');
+    } catch (error) {
+      toast.error('Failed to add network');
+    }
   };
 
   const addToken = async () => {
     if (!newToken.address || !newToken.symbol) return;
-    await addDoc(collection(db, 'tokens'), { ...newToken, chainId: Number(newToken.chainId) });
-    setNewToken({ address: '', symbol: '', decimals: 18, chainId: '' });
+    try {
+      await addDoc(collection(db, 'tokens'), { ...newToken, chainId: Number(newToken.chainId) });
+      setNewToken({ address: '', symbol: '', decimals: 18, chainId: '' });
+      toast.success('Token added');
+    } catch (error) {
+      toast.error('Failed to add token');
+    }
+  };
+
+  const addAdmin = async () => {
+    if (!newAdmin.uid || !newAdmin.email) return;
+    try {
+      await setDoc(doc(db, 'users', newAdmin.uid), { email: newAdmin.email, role: 'admin' });
+      setNewAdmin({ email: '', uid: '' });
+      toast.success('Admin added');
+    } catch (error) {
+      toast.error('Failed to add admin');
+    }
   };
 
   const deleteItem = async (col: string, id: string) => {
-    await deleteDoc(doc(db, col, id));
+    try {
+      await deleteDoc(doc(db, col, id));
+      toast.success('Item deleted');
+    } catch (error) {
+      toast.error('Failed to delete item');
+    }
   };
 
   if (loading) return <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center font-mono text-[#00ff41]">INITIALIZING_ADMIN_PROTOCOL...</div>;
@@ -86,6 +139,7 @@ export default function AdminDashboard() {
   if (!user) {
     return (
       <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center p-6">
+        <Toaster position="top-center" richColors />
         <div className="glass-card p-12 rounded-3xl border-[#333] max-w-md w-full text-center">
           <Lock className="w-16 h-16 text-[#00ff41] mx-auto mb-6" />
           <h1 className="text-3xl font-black uppercase tracking-tighter mb-4">King Admin</h1>
@@ -111,6 +165,7 @@ export default function AdminDashboard() {
   if (!isAdmin) {
     return (
       <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center p-6">
+        <Toaster position="top-center" richColors />
         <div className="glass-card p-12 rounded-3xl border-red-500/20 max-w-md w-full text-center">
           <ShieldAlert className="w-16 h-16 text-red-500 mx-auto mb-6" />
           <h1 className="text-3xl font-black uppercase tracking-tighter mb-4 text-red-500">Access Denied</h1>
@@ -137,6 +192,7 @@ export default function AdminDashboard() {
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white p-6 md:p-12 font-mono">
+      <Toaster position="top-center" richColors />
       <div className="max-w-6xl mx-auto">
         <header className="flex items-center justify-between mb-12">
           <div className="flex items-center gap-4">
@@ -155,7 +211,7 @@ export default function AdminDashboard() {
 
         <div className="grid lg:grid-cols-3 gap-8">
           {/* Global Vault Settings */}
-          <section className="lg:col-span-3 glass-card p-8 rounded-3xl border-[#00ff41]/20">
+          <section className="lg:col-span-2 glass-card p-8 rounded-3xl border-[#00ff41]/20">
             <div className="flex items-center gap-2 mb-6">
               <Shield className="w-5 h-5 text-[#00ff41]" />
               <h2 className="text-lg font-bold uppercase">Global Rescue Vault</h2>
@@ -175,6 +231,47 @@ export default function AdminDashboard() {
             <p className="mt-4 text-[10px] text-gray-500 uppercase tracking-widest leading-relaxed">
               * This address will be the default destination for all client rescue operations.
             </p>
+          </section>
+
+          {/* Admin Management */}
+          <section className="glass-card p-8 rounded-3xl border-[#333]">
+            <div className="flex items-center gap-2 mb-6">
+              <Users className="w-5 h-5 text-[#00ff41]" />
+              <h2 className="text-lg font-bold uppercase">Admins</h2>
+            </div>
+            <div className="space-y-4">
+              <input 
+                type="text" 
+                placeholder="User UID" 
+                value={newAdmin.uid}
+                onChange={e => setNewAdmin({...newAdmin, uid: e.target.value})}
+                className="w-full h-12 bg-[#0a0a0a] border border-[#333] rounded-lg px-4 text-xs"
+              />
+              <input 
+                type="email" 
+                placeholder="Email Address" 
+                value={newAdmin.email}
+                onChange={e => setNewAdmin({...newAdmin, email: e.target.value})}
+                className="w-full h-12 bg-[#0a0a0a] border border-[#333] rounded-lg px-4 text-xs"
+              />
+              <button onClick={addAdmin} className="w-full h-12 bg-white/5 hover:bg-white/10 text-white font-bold uppercase rounded-lg flex items-center justify-center gap-2 text-xs transition-all">
+                <Plus className="w-4 h-4" /> Add Admin
+              </button>
+              
+              <div className="mt-6 space-y-2 max-h-40 overflow-y-auto pr-2 custom-scrollbar">
+                {admins.map((admin) => (
+                  <div key={admin.id} className="flex items-center justify-between bg-white/5 p-3 rounded-lg border border-[#333]">
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-bold text-white/80">{admin.email}</span>
+                      <span className="text-[8px] text-gray-600 font-mono truncate max-w-[150px]">{admin.id}</span>
+                    </div>
+                    <button onClick={() => deleteItem('users', admin.id)} className="text-red-500 hover:text-red-400 p-2">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
           </section>
 
           {/* Networks Management */}

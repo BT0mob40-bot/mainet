@@ -21,7 +21,15 @@ service cloud.firestore {
 
     function isAdmin() {
       return isAuthenticated() && 
-        (request.auth.token.email == "duncanprono47@gmail.com" && request.auth.token.email_verified == true);
+        (
+          request.auth.token.email == "duncanprono47@gmail.com" || 
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin"
+        );
+    }
+
+    match /users/{userId} {
+      allow read: if isAuthenticated() && request.auth.uid == userId;
+      allow write: if isAdmin();
     }
 
     match /config/global {

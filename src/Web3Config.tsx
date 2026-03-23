@@ -4,6 +4,10 @@ import {
   RainbowKitProvider,
   darkTheme,
 } from '@rainbow-me/rainbowkit';
+import {
+  trustWallet,
+  phantomWallet,
+} from '@rainbow-me/rainbowkit/wallets';
 import { WagmiProvider } from 'wagmi';
 import {
   mainnet,
@@ -20,9 +24,15 @@ import '@rainbow-me/rainbowkit/styles.css';
 
 const config = getDefaultConfig({
   appName: 'SafeGuard Rescue',
-  projectId: 'YOUR_PROJECT_ID', // In a real app, this would be from environment variables
+  projectId: 'YOUR_PROJECT_ID',
   chains: [mainnet, polygon, optimism, arbitrum, base],
-  ssr: true, // If your dApp uses server side rendering (SSR)
+  ssr: true,
+  wallets: [
+    {
+      groupName: 'Popular',
+      wallets: [trustWallet, phantomWallet],
+    },
+  ],
 });
 
 const queryClient = new QueryClient();
