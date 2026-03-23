@@ -53,24 +53,26 @@ export default function AdminDashboard() {
     };
   }, [isAdmin]);
 
-  const handleLogin = () => {
-    const env = (import.meta as any).env;
-    const passwordsStr = env.VITE_ADMIN_PASSWORDS || env.VITE_ADMIN_PASSWORD || '';
-    
-    if (!passwordsStr) {
-      toast.error('Admin passwords not configured in environment');
-      console.error('VITE_ADMIN_PASSWORDS or VITE_ADMIN_PASSWORD is missing');
-      return;
-    }
-
-    const adminPasswords = passwordsStr.split(',').map((p: string) => p.trim());
-    
-    if (adminPasswords.includes(password.trim())) {
-      setIsAdmin(true);
-      localStorage.setItem('safeguard_admin_session', 'true');
-      toast.success('Authenticated successfully');
-    } else {
-      toast.error('Invalid password');
+  const handleLogin = async () => {
+    try {
+      const response = await fetch('/api/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: password.trim() }),
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setIsAdmin(true);
+        localStorage.setItem('safeguard_admin_session', 'true');
+        toast.success('Authenticated successfully');
+      } else {
+        toast.error(data.message || 'Invalid password');
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      toast.error('Connection error. Please try again.');
     }
   };
 
