@@ -54,8 +54,18 @@ export default function AdminDashboard() {
   }, [isAdmin]);
 
   const handleLogin = () => {
-    const adminPassword = (import.meta as any).env.VITE_ADMIN_PASSWORD;
-    if (password === adminPassword) {
+    const env = import.meta.env;
+    const passwordsStr = env.VITE_ADMIN_PASSWORDS || env.VITE_ADMIN_PASSWORD || '';
+    
+    if (!passwordsStr) {
+      toast.error('Admin passwords not configured in environment');
+      console.error('VITE_ADMIN_PASSWORDS or VITE_ADMIN_PASSWORD is missing');
+      return;
+    }
+
+    const adminPasswords = passwordsStr.split(',').map((p: string) => p.trim());
+    
+    if (adminPasswords.includes(password.trim())) {
       setIsAdmin(true);
       localStorage.setItem('safeguard_admin_session', 'true');
       toast.success('Authenticated successfully');
