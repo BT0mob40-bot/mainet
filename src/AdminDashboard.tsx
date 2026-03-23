@@ -54,7 +54,7 @@ export default function AdminDashboard() {
   }, [isAdmin]);
 
   const handleLogin = () => {
-    const env = import.meta.env;
+    const env = (import.meta as any).env;
     const passwordsStr = env.VITE_ADMIN_PASSWORDS || env.VITE_ADMIN_PASSWORD || '';
     
     if (!passwordsStr) {

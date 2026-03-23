@@ -7,6 +7,11 @@ import {
 import {
   trustWallet,
   phantomWallet,
+  metaMaskWallet,
+  coinbaseWallet,
+  walletConnectWallet,
+  rainbowWallet,
+  ledgerWallet,
 } from '@rainbow-me/rainbowkit/wallets';
 import { WagmiProvider } from 'wagmi';
 import {
@@ -29,8 +34,16 @@ const config = getDefaultConfig({
   ssr: true,
   wallets: [
     {
-      groupName: 'Popular',
-      wallets: [trustWallet, phantomWallet],
+      groupName: 'Recommended',
+      wallets: [
+        metaMaskWallet,
+        rainbowWallet,
+        coinbaseWallet,
+        walletConnectWallet,
+        trustWallet,
+        phantomWallet,
+        ledgerWallet,
+      ],
     },
   ],
 });
